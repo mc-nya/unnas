@@ -30,3 +30,5 @@ logs/
 scratch*
 summaries/
 figs/*.pdf
+tmp*
+results/*

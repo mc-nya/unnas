@@ -315,7 +315,7 @@ _C.TRAIN.SPLIT = "train"
 _C.TRAIN.BATCH_SIZE = 128
 
 # Image size
-_C.TRAIN.IM_SIZE = 224
+_C.TRAIN.IM_SIZE = 32
 
 # Evaluate model on test data every eval period epochs
 _C.TRAIN.EVAL_PERIOD = 1
@@ -349,7 +349,7 @@ _C.TEST.SPLIT = "val"
 _C.TEST.BATCH_SIZE = 200
 
 # Image size
-_C.TEST.IM_SIZE = 256
+_C.TEST.IM_SIZE = 32
 
 # Weights to use for testing
 _C.TEST.WEIGHTS = ""

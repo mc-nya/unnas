@@ -5,6 +5,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+"""import root path as PYTHONPATH"""
+
+import sys
+sys.path.append('../')
+
 """Train a classification model."""
 
 import pycls.core.config as config
