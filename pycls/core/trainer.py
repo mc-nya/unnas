@@ -211,7 +211,7 @@ def train_epoch_pseudo(train_loader, model, loss_fun, optimizer, train_meter, cu
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        
+
         # Compute the errors
         mb_size = label_im.size(0) * cfg.NUM_GPUS
         ks = [1, min(5, cfg.MODEL.NUM_CLASSES)]  # rot only has 4 classes
@@ -481,7 +481,10 @@ def train_model():
         f(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch)
         # Compute precise BN stats
         if cfg.BN.USE_PRECISE_STATS:
-            net.compute_precise_bn_stats(model, train_loader)
+            if cfg.TASK == 'psd' or cfg.TASK == 'fix':
+                net.compute_precise_bn_stats(model, train_loader[1])
+            else:
+                net.compute_precise_bn_stats(model, train_loader)
         # Save a checkpoint
         if (cur_epoch + 1) % cfg.TRAIN.CHECKPOINT_PERIOD == 0:
             checkpoint_file = checkpoint.save_checkpoint(model, optimizer, cur_epoch)
