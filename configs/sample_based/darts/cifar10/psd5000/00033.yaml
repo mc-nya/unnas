@@ -40,7 +40,6 @@ HOST: localhost
 JIGSAW_GRID: 3
 LOG_DEST: stdout
 LOG_PERIOD: 100
-MAX_EPOCH: 50
 MEM:
   RELU_INPLACE: true
 MODEL:
@@ -119,7 +118,7 @@ OPTIM:
   ITER_LR: false
   LR_MULT: 0.1
   LR_POLICY: cos
-  MAX_EPOCH: 100
+  MAX_EPOCH: 50
   MOMENTUM: 0.9
   NESTEROV: true
   STEPS: []

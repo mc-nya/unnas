@@ -1,6 +1,6 @@
 SPACE='darts'
 DATASET='cifar10'
-TASK='psd5000'
+TASK='psd250'
 input_dir=f'configs/sample_based/{SPACE}/{DATASET}/{TASK}/'
 output_dir=f'results/sample_based/{SPACE}/{DATASET}/{TASK}/'
 import numpy as np
@@ -27,5 +27,5 @@ for f in file_list:
         script_file.write('conda activate pytorch\n')
         script_file.write('export PYTHONPATH=.\n')
         script_file.write(f'python tools/train_net.py --cfg {input_dir}/{f} OUT_DIR {out_file} \n')
-    os.system(f'sbatch {out_file}/script.sh')
+    #os.system(f'sbatch {out_file}/script.sh')
 print(file_list)
