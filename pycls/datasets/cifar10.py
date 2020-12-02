@@ -20,7 +20,7 @@ from pycls.datasets.prepare import prepare_rot
 from pycls.datasets.prepare import prepare_col
 from pycls.datasets.prepare import prepare_jig
 from pycls.datasets.prepare import prepare_im
-
+from pycls.datasets.randaugment import random_augment
 
 logger = logging.get_logger(__name__)
 folder = os.path.dirname(os.path.realpath(__file__))
@@ -77,13 +77,48 @@ class Cifar10(torch.utils.data.Dataset):
                 return inputs[:pos], labels[:pos]
             else:  # self._side == "r"
                 return inputs[pos:], labels[pos:]
+        # Construct semi-sup dataset for semi-supervised problem
+        elif self._split=='train' and (cfg.TASK=='fix' or cfg.TASK=='psd'):
+            index=[]
+            for i in range(10):
+                index.extend(np.where(np.array(labels)==i)[0][:cfg.TRAIN.PSD_LABEL_SPLIT//10])
+            if self._side=='l':
+                inputs=inputs[index]
+                labels=np.array(labels)[index].tolist()
+            print(f'Dataset size: {inputs.shape}, {len(labels)}')
+            return inputs,labels
+
         else:
             return inputs, labels
 
     def __getitem__(self, index):
         im, label = self._inputs[index, ...].copy(), self._labels[index]
         im = transforms.CHW2HWC(im)  # CHW, RGB -> HWC, RGB
-        if cfg.TASK == 'rot':
+        if cfg.TASK == 'fix' and self._split== 'train':
+            im1=prepare_im(im,
+                            dataset="cifar10",
+                            split=self._split,
+                            mean=_MEAN,
+                            sd=_SD)
+            im2=random_augment(im,
+                            dataset="cifar10",
+                            split=self._split,
+                            mean=_MEAN,
+                            sd=_SD)
+            return im1, im2, label
+        elif cfg.TASK == 'psd' and self._split== 'train':
+            im1=prepare_im(im,
+                            dataset="cifar10",
+                            split=self._split,
+                            mean=_MEAN,
+                            sd=_SD)
+            im2=prepare_im(im,
+                            dataset="cifar10",
+                            split=self._split,
+                            mean=_MEAN,
+                            sd=_SD)
+            return im1, im2, label
+        elif cfg.TASK == 'rot':
             im, label = prepare_rot(im,
                                     dataset="cifar10",
                                     split=self._split,

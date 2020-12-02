@@ -10,6 +10,7 @@ import numpy as np
 from skimage import color
 
 import pycls.datasets.transforms as transforms
+import pycls.datasets.randaugment as randaugment
 from pycls.core.config import cfg
 
 
@@ -142,6 +143,54 @@ def prepare_im(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
         if split == "train":
             im = transforms.horizontal_flip(im=im, p=0.5)
             im = transforms.random_crop(im=im, size=cfg.TRAIN.IM_SIZE, pad_size=4)  # Best after color_norm because of zero padding
+    return im
+
+def prepare_strong_aug(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=None):
+    if "imagenet" in dataset:
+        # Train and test setups differ
+        train_size = cfg.TRAIN.IM_SIZE
+        if split == "train":
+            # Scale and aspect ratio then horizontal flip
+            im = transforms.random_sized_crop(im=im, size=train_size, area_frac=0.08)
+            im = transforms.horizontal_flip(im=im, p=0.5, order="HWC")
+        else:
+            # Scale and center crop
+            im = transforms.scale(cfg.TEST.IM_SIZE, im)
+            im = transforms.center_crop(train_size, im)
+    elif "cityscapes" in dataset:
+        train_size = cfg.TRAIN.IM_SIZE
+        if split == "train":
+            # Scale
+            random_scale = np.power(2, -1 + 2 * np.random.uniform())
+            random_size = int(max(train_size, cfg.TEST.IM_SIZE * random_scale))
+            im = transforms.scale(random_size, im)
+            # Crop
+            im = transforms.random_crop(im, train_size, order="HWC")
+            # Flip
+            im = transforms.horizontal_flip(im=im, p=0.5, order="HWC")
+        else:
+            # Scale
+            im = transforms.scale(cfg.TEST.IM_SIZE, im)
+            # Crop
+            im = transforms.center_crop(train_size, im)
+    im = transforms.HWC2CHW(im)
+    im = im / 255.0
+    if "cifar" not in dataset:
+        im = im[:, :, ::-1]  # RGB -> BGR
+        # PCA jitter
+        if split == "train":
+            im = transforms.lighting(im, 0.1, eig_vals, eig_vecs)
+    # Color normalization
+    im = transforms.color_norm(im, mean, sd)
+    if "cifar" in dataset:
+        if split == "train":
+            if cfg.TASK == 'fix':
+                im = transforms.random_erasing(im=im,p=1.0)
+                im = transforms.horizontal_flip(im=im, p=0.5)
+                im = transforms.random_crop(im=im, size=cfg.TRAIN.IM_SIZE, pad_size=4)  # Best after color_norm because of zero padding
+            else:
+                im = transforms.horizontal_flip(im=im, p=0.5)
+                im = transforms.random_crop(im=im, size=cfg.TRAIN.IM_SIZE, pad_size=4)  
     return im
 
 

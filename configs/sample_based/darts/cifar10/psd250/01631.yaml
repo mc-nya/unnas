@@ -1,0 +1,174 @@
+ANYNET:
+  BLOCK_TYPE: res_bottleneck_block
+  BOT_MULS: []
+  DEPTHS: []
+  GROUP_WS: []
+  SE_ON: false
+  SE_R: 0.25
+  STEM_TYPE: simple_stem_in
+  STEM_W: 32
+  STRIDES: []
+  WIDTHS: []
+BN:
+  CUSTOM_WEIGHT_DECAY: 0.0
+  EPS: 1.0e-05
+  MOM: 0.1
+  NUM_SAMPLES_PRECISE: 1024
+  USE_CUSTOM_WEIGHT_DECAY: false
+  USE_PRECISE_STATS: true
+  ZERO_INIT_FINAL_GAMMA: false
+CFG_DEST: config.yaml
+CUDNN:
+  BENCHMARK: false
+DATA_LOADER:
+  NUM_WORKERS: 4
+  PIN_MEMORY: true
+DIST_BACKEND: nccl
+DOWNLOAD_CACHE: /tmp/pycls-download-cache
+EN:
+  DC_RATIO: 0.0
+  DEPTHS: []
+  DROPOUT_RATIO: 0.0
+  EXP_RATIOS: []
+  HEAD_W: 1280
+  KERNELS: []
+  SE_R: 0.25
+  STEM_W: 32
+  STRIDES: []
+  WIDTHS: []
+HOST: localhost
+JIGSAW_GRID: 3
+LOG_DEST: stdout
+LOG_PERIOD: 100
+MAX_EPOCH: 50
+MEM:
+  RELU_INPLACE: true
+MODEL:
+  ASPP_CHANNELS: 256
+  ASPP_RATES:
+  - 6
+  - 12
+  - 18
+  DEPTH: 0
+  INPUT_CHANNELS: 3
+  LABEL_SMOOTHING_EPS: 0.0
+  LOSS_FUN: cross_entropy
+  NUM_CLASSES: 10
+  TYPE: nas
+NAS:
+  AUX: false
+  AUX_WEIGHT: 0.4
+  CUSTOM_GENOTYPE:
+  - - - skip_connect
+      - 0
+    - - max_pool_3x3
+      - 0
+    - - dil_conv_5x5
+      - 2
+    - - max_pool_3x3
+      - 2
+    - - sep_conv_5x5
+      - 2
+    - - sep_conv_5x5
+      - 2
+    - - sep_conv_3x3
+      - 2
+    - - sep_conv_3x3
+      - 2
+  - - 2
+    - 3
+    - 4
+    - 5
+  - - - skip_connect
+      - 0
+    - - sep_conv_3x3
+      - 1
+    - - dil_conv_5x5
+      - 1
+    - - sep_conv_5x5
+      - 0
+    - - dil_conv_5x5
+      - 1
+    - - dil_conv_3x3
+      - 3
+    - - avg_pool_3x3
+      - 4
+    - - dil_conv_5x5
+      - 0
+  - - 2
+    - 3
+    - 4
+    - 5
+  DEPTH: 20
+  DROP_PROB: 0.0
+  GENOTYPE: custom
+  MATRIX: []
+  NUM_MODULES_PER_STACK: 3
+  NUM_STACKS: 3
+  OPS: []
+  WIDTH: 16
+NUM_GPUS: 1
+OPTIM:
+  ARCH_BASE_LR: 0.0003
+  ARCH_EPOCH: 0.0
+  ARCH_OPTIM: adam
+  ARCH_WEIGHT_DECAY: 0.001
+  BASE_LR: 0.1
+  DAMPENING: 0.0
+  GAMMA: 0.1
+  ITER_LR: false
+  LR_MULT: 0.1
+  LR_POLICY: cos
+  MAX_EPOCH: 100
+  MOMENTUM: 0.9
+  NESTEROV: true
+  STEPS: []
+  WARMUP_EPOCHS: 0
+  WARMUP_FACTOR: 0.1
+  WEIGHT_DECAY: 0.0005
+OUT_DIR: .
+PORT: 10001
+PREC_TIME:
+  NUM_ITER: 30
+  WARMUP_ITER: 3
+REGNET:
+  BLOCK_TYPE: res_bottleneck_block
+  BOT_MUL: 1.0
+  DEPTH: 10
+  GROUP_W: 16
+  SE_ON: false
+  SE_R: 0.25
+  STEM_TYPE: simple_stem_in
+  STEM_W: 32
+  STRIDE: 2
+  W0: 32
+  WA: 5.0
+  WM: 2.5
+RESNET:
+  NUM_GROUPS: 1
+  STRIDE_1X1: true
+  TRANS_FUN: basic_transform
+  WIDTH_PER_GROUP: 64
+RNG_SEED: 1
+TASK: psd
+TEST:
+  BATCH_SIZE: 200
+  DATASET: cifar10
+  IM_SIZE: 32
+  SPLIT: test
+  WEIGHTS: ''
+TRAIN:
+  AUTO_RESUME: true
+  BATCH_SIZE: 128
+  CHECKPOINT_PERIOD: 10
+  DATASET: cifar10
+  EVAL_PERIOD: 1
+  GRAY_PERCENTAGE: 0.0
+  IM_SIZE: 32
+  PORTION: 1.0
+  PSD_LABEL_BATCH_SIZE: 16
+  PSD_LABEL_SPLIT: 250
+  PSD_THRESHOLD: 0.95
+  PSD_UNLABEL_BATCH_SIZE: 112
+  SPLIT: train
+  WEIGHTS: ''

@@ -5,18 +5,13 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""import root path as PYTHONPATH"""
-
-import sys
-sys.path.append('../')
-
 """Train a classification model."""
-
+import sys
 import pycls.core.config as config
 import pycls.core.distributed as dist
 import pycls.core.trainer as trainer
 from pycls.core.config import cfg
-
+sys.path.append('../')
 
 def main():
     config.load_cfg_fom_args("Train a classification model.")

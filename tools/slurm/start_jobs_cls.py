@@ -1,6 +1,6 @@
 SPACE='darts'
 DATASET='cifar10'
-TASK='cls'
+TASK='psd5000'
 input_dir=f'configs/sample_based/{SPACE}/{DATASET}/{TASK}/'
 output_dir=f'results/sample_based/{SPACE}/{DATASET}/{TASK}/'
 import numpy as np

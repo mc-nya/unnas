@@ -23,6 +23,7 @@ import pycls.core.optimizer as optim
 import pycls.datasets.loader as loader
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from pycls.core.config import cfg
 
 
@@ -140,6 +141,87 @@ def train_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch
         else:
             top1_err, top5_err = top1_err.item(), top5_err.item()
         train_meter.iter_toc()
+        # Update and log stats
+        train_meter.update_stats(top1_err, top5_err, loss, lr, mb_size)
+        train_meter.log_iter_stats(cur_epoch, cur_iter)
+        train_meter.iter_tic()
+    # Log epoch stats
+    train_meter.log_epoch_stats(cur_epoch)
+    train_meter.reset()
+
+def train_epoch_pseudo(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch):
+    """Performs one epoch of training."""
+    # Update drop path prob for NAS
+    if cfg.MODEL.TYPE == "nas":
+        m = model.module if cfg.NUM_GPUS > 1 else model
+        m.set_drop_path_prob(cfg.NAS.DROP_PROB * cur_epoch / cfg.OPTIM.MAX_EPOCH)
+    # Shuffle the data
+    
+    # Update the learning rate per epoch
+    if not cfg.OPTIM.ITER_LR:
+        lr = optim.get_epoch_lr(cur_epoch)
+        optim.set_lr(optimizer, lr)
+    # Enable training mode
+    model.train()
+    train_meter.iter_tic()
+    max_iter=max(len(train_loader[1]),len(train_loader[0]))
+    loader.shuffle(train_loader[0], cur_epoch)
+    loader.shuffle(train_loader[1], cur_epoch)
+    label_iter = iter(train_loader[0])
+    unlabel_iter=iter(train_loader[1])
+    for cur_iter in range(max_iter):    
+        try:
+            #print(next(label_iter))
+            label_im,_,labels = next(label_iter)
+        except:
+            loader.shuffle(train_loader[0], cur_epoch)
+            label_iter = iter(train_loader[0])
+            label_im,_,labels = next(label_iter)
+        try:
+            unlabel_im1,unlabel_im2,_ = next(unlabel_iter)
+        except:
+            loader.shuffle(train_loader[1], cur_epoch)
+            unlabel_iter = iter(train_loader[1])
+            unlabel_im1,unlabel_im2,_ = next(unlabel_iter)
+        # Update the learning rate per iter
+        if cfg.OPTIM.ITER_LR:
+            lr = optim.get_epoch_lr(cur_epoch + cur_iter / len(train_loader))
+            optim.set_lr(optimizer, lr)
+        # Transfer the data to the current GPU device
+        label_im, labels = label_im.cuda(), labels.cuda(non_blocking=True)
+        unlabel_im1, unlabel_im2 = unlabel_im1.cuda(), unlabel_im2.cuda()
+        imgs=torch.cat([label_im,unlabel_im1,unlabel_im2],dim=0)
+        logits = model(imgs)
+        logits_label=logits[:len(labels)]
+        logits_unlabel1,logits_unlabel2=torch.split(logits[len(labels):],unlabel_im1.shape[0])
+        loss_label=loss_fun(logits_label,labels)
+
+        with torch.no_grad():
+            probs = torch.softmax(logits_unlabel1, dim=1)
+            scores, lbs_u_guess = torch.max(probs, dim=1)
+            mask = scores.ge(cfg.TRAIN.PSD_THRESHOLD).float()
+        criteria_u = nn.CrossEntropyLoss(reduction='none').cuda()
+        if cfg.TASK=='psd':
+            loss_unlabel=(criteria_u(logits_unlabel1,lbs_u_guess)*mask).mean()
+        elif cfg.TASK=='fix':
+            loss_unlabel=(criteria_u(logits_unlabel2,lbs_u_guess)*mask).mean()
+        
+        loss=loss_label+loss_unlabel
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        
+        # Compute the errors
+        mb_size = label_im.size(0) * cfg.NUM_GPUS
+        ks = [1, min(5, cfg.MODEL.NUM_CLASSES)]  # rot only has 4 classes
+        top1_err, top5_err = meters.topk_errors(logits_label, labels, ks)
+        # Combine the stats across the GPUs (no reduction if 1 GPU used)
+        
+        loss, top1_err, top5_err = dist.scaled_all_reduce([loss, top1_err, top5_err])
+        loss=loss.item()
+        top1_err, top5_err = top1_err.item(), top5_err.item()
+        train_meter.iter_toc() 
         # Update and log stats
         train_meter.update_stats(top1_err, top5_err, loss, lr, mb_size)
         train_meter.log_iter_stats(cur_epoch, cur_iter)
@@ -358,12 +440,33 @@ def train_model():
             portion=cfg.TRAIN.PORTION,
             side="r"
         )
+    elif cfg.TASK=='fix' or cfg.TASK=='psd':
+        train_loader = [loader._construct_loader(
+                dataset_name=cfg.TRAIN.DATASET,
+                split=cfg.TRAIN.SPLIT,
+                batch_size=int(cfg.TRAIN.PSD_LABEL_BATCH_SIZE / cfg.NUM_GPUS),
+                shuffle=True,
+                drop_last=False,
+                side="l"
+            ),
+            loader._construct_loader(
+                dataset_name=cfg.TRAIN.DATASET,
+                split=cfg.TRAIN.SPLIT,
+                batch_size=int(cfg.TRAIN.PSD_UNLABEL_BATCH_SIZE / cfg.NUM_GPUS),
+                shuffle=True,
+                drop_last=False,
+                side="r"
+            )]
+        test_loader = loader.construct_test_loader()
     else:
         train_loader = loader.construct_train_loader()
         test_loader = loader.construct_test_loader()
     train_meter_type = meters.TrainMeterIoU if cfg.TASK == "seg" else meters.TrainMeter
     test_meter_type = meters.TestMeterIoU if cfg.TASK == "seg" else meters.TestMeter
-    l = train_loader[0] if isinstance(train_loader, list) else train_loader
+    if cfg.TASK == 'psd' or cfg.TASK == 'fix':
+        l=train_loader[np.argmax([len(train_loader[0]),len(train_loader[1])])]
+    else:   
+        l = train_loader[0] if isinstance(train_loader, list) else train_loader
     train_meter = train_meter_type(len(l))
     test_meter = test_meter_type(len(test_loader))
     # Compute model and loader timings
@@ -374,7 +477,7 @@ def train_model():
     logger.info("Start epoch: {}".format(start_epoch + 1))
     for cur_epoch in range(start_epoch, cfg.OPTIM.MAX_EPOCH):
         # Train for one epoch
-        f = search_epoch if "search" in cfg.MODEL.TYPE else train_epoch
+        f = search_epoch if "search" in cfg.MODEL.TYPE else train_epoch_pseudo if 'psd' == cfg.TASK or 'fix' == cfg.TASK else train_epoch
         f(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch)
         # Compute precise BN stats
         if cfg.BN.USE_PRECISE_STATS:

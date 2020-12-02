@@ -335,6 +335,17 @@ _C.TRAIN.GRAY_PERCENTAGE = 0.0
 # Portion to create trainA/trainB split
 _C.TRAIN.PORTION = 1.0
 
+# Pseudo labeling threshold
+_C.TRAIN.PSD_THRESHOLD=0.9
+
+# Pseudo labeling labeled samples
+_C.TRAIN.PSD_LABEL_SPLIT=150
+
+# Pseudo labeling labeled size
+_C.TRAIN.PSD_LABEL_BATCH_SIZE=32
+
+# Pseudo labeling labeled size
+_C.TRAIN.PSD_UNLABEL_BATCH_SIZE=224
 
 # ------------------------------------------------------------------------------------ #
 # Testing options
@@ -406,8 +417,10 @@ _C.PREC_TIME.NUM_ITER = 30
 # Number of GPUs to use (applies to both training and testing)
 _C.NUM_GPUS = 1
 
-# Task (cls, seg, rot, col, jig)
+# Task (cls, seg, rot, col, jig, psd, fix)
 _C.TASK = "cls"
+
+
 
 # Grid in Jigsaw (2, 3); no effect if TASK is not jig
 _C.JIGSAW_GRID = 3
@@ -475,9 +488,14 @@ def cache_cfg_urls():
 def dump_cfg():
     """Dumps the config to the output directory."""
     cfg_file = os.path.join(_C.OUT_DIR, _C.CFG_DEST)
+    print(cfg_file)
     with open(cfg_file, "w") as f:
         _C.dump(stream=f)
 
+def dump_cfg_to_file(filename):
+    """Dumps the config to the output directory."""
+    with open(filename, "w") as f:
+        _C.dump(stream=f)
 
 def load_cfg(out_dir, cfg_dest="config.yaml"):
     """Loads config from specified output directory."""
