@@ -1,6 +1,6 @@
 SPACE='darts'
 DATASET='cifar10'
-TASK='psd250'
+TASK='psd5000'
 input_dir=f'configs/sample_based/{SPACE}/{DATASET}/{TASK}/'
 output_dir=f'results/sample_based/{SPACE}/{DATASET}/{TASK}/'
 import numpy as np
@@ -23,9 +23,11 @@ for f in file_list:
         script_file.write('#SBATCH --gres=gpu:1\n')
         script_file.write(f'#SBATCH --job-name={f_name}_{SPACE}_{DATASET}_{TASK}\n')
         script_file.write(f'#SBATCH --output={out_file}/output.txt\n')
+        script_file.write(f'#SBATCH --mail-user=mli176@ucr.edu\n')
+        script_file.write(f'#SBATCH --mail-type=FAIL\n')
         script_file.write('source ~/.bashrc\n')
         script_file.write('conda activate pytorch\n')
         script_file.write('export PYTHONPATH=.\n')
         script_file.write(f'python tools/train_net.py --cfg {input_dir}/{f} OUT_DIR {out_file} \n')
-    #os.system(f'sbatch {out_file}/script.sh')
+    os.system(f'sbatch {out_file}/script.sh')
 print(file_list)

@@ -185,7 +185,7 @@ def train_epoch_pseudo(train_loader, model, loss_fun, optimizer, train_meter, cu
             unlabel_im1,unlabel_im2,_ = next(unlabel_iter)
         # Update the learning rate per iter
         if cfg.OPTIM.ITER_LR:
-            lr = optim.get_epoch_lr(cur_epoch + cur_iter / len(train_loader))
+            lr = optim.get_epoch_lr(cur_epoch + cur_iter / max_iter)
             optim.set_lr(optimizer, lr)
         # Transfer the data to the current GPU device
         label_im, labels = label_im.cuda(), labels.cuda(non_blocking=True)
@@ -194,7 +194,14 @@ def train_epoch_pseudo(train_loader, model, loss_fun, optimizer, train_meter, cu
         logits = model(imgs)
         logits_label=logits[:len(labels)]
         logits_unlabel1,logits_unlabel2=torch.split(logits[len(labels):],unlabel_im1.shape[0])
+
+        # with torch.no_grad():
+        #     probs = torch.softmax(logits_label, dim=1)
+        #     scores, lbs_guess = torch.max(probs, dim=1)
+        # print(lbs_guess,labels)
         loss_label=loss_fun(logits_label,labels)
+        
+        #print(logits.shape,logits_label.shape,logits_unlabel1.shape,logits_unlabel2.shape)
 
         with torch.no_grad():
             probs = torch.softmax(logits_unlabel1, dim=1)
@@ -205,6 +212,8 @@ def train_epoch_pseudo(train_loader, model, loss_fun, optimizer, train_meter, cu
             loss_unlabel=(criteria_u(logits_unlabel1,lbs_u_guess)*mask).mean()
         elif cfg.TASK=='fix':
             loss_unlabel=(criteria_u(logits_unlabel2,lbs_u_guess)*mask).mean()
+        else:
+            loss_unlabel=0
         
         loss=loss_label+loss_unlabel
 
@@ -217,9 +226,9 @@ def train_epoch_pseudo(train_loader, model, loss_fun, optimizer, train_meter, cu
         ks = [1, min(5, cfg.MODEL.NUM_CLASSES)]  # rot only has 4 classes
         top1_err, top5_err = meters.topk_errors(logits_label, labels, ks)
         # Combine the stats across the GPUs (no reduction if 1 GPU used)
-        
+        loss=loss_label.item()
         loss, top1_err, top5_err = dist.scaled_all_reduce([loss, top1_err, top5_err])
-        loss=loss.item()
+        
         top1_err, top5_err = top1_err.item(), top5_err.item()
         train_meter.iter_toc() 
         # Update and log stats

@@ -47,13 +47,22 @@ def compute_precise_bn_stats(model, loader):
     for bn in bns:
         bn.momentum = 1.0
     # Accumulate the stats across the data samples
-    for inputs, _labels in itertools.islice(loader, num_iter):
-        model(inputs.cuda())
-        # Accumulate the stats for each BN layer
-        for i, bn in enumerate(bns):
-            m, v = bn.running_mean, bn.running_var
-            sqs[i] += (v + m * m) / num_iter
-            mus[i] += m / num_iter
+    if cfg.TASK == 'psd' or cfg.TASK == 'fix':
+        for inputs,_, _labels in itertools.islice(loader, num_iter):
+            model(inputs.cuda())
+            # Accumulate the stats for each BN layer
+            for i, bn in enumerate(bns):
+                m, v = bn.running_mean, bn.running_var
+                sqs[i] += (v + m * m) / num_iter
+                mus[i] += m / num_iter
+    else:
+        for inputs, _labels in itertools.islice(loader, num_iter):
+            model(inputs.cuda())
+            # Accumulate the stats for each BN layer
+            for i, bn in enumerate(bns):
+                m, v = bn.running_mean, bn.running_var
+                sqs[i] += (v + m * m) / num_iter
+                mus[i] += m / num_iter
     # Set the stats and restore momentum values
     for i, bn in enumerate(bns):
         bn.running_var = sqs[i] - mus[i] * mus[i]
