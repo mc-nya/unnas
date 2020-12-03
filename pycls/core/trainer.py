@@ -525,7 +525,7 @@ def test_model():
         logger.info("Loaded model weights from: {}".format(cfg.TEST.WEIGHTS))
     elif checkpoint.has_checkpoint():
         last_checkpoint = checkpoint.get_last_checkpoint()
-        checkpoint.load_checkpoint(last_checkpoint, model, optimizer)
+        checkpoint.load_checkpoint(last_checkpoint, model)
         logger.info("Loaded checkpoint from: {}".format(last_checkpoint))
     else:
         print("ERROR: NO checkpoint! ")
