@@ -510,9 +510,26 @@ def test_model():
     setup_env()
     # Construct the model
     model = setup_model()
+    if cfg.TRAIN.AUTO_RESUME and checkpoint.has_checkpoint():
+        last_checkpoint = checkpoint.get_last_checkpoint()
+        checkpoint_epoch = checkpoint.load_checkpoint(last_checkpoint, model, optimizer)
+        logger.info("Loaded checkpoint from: {}".format(last_checkpoint))
+        start_epoch = checkpoint_epoch + 1
+    elif cfg.TRAIN.WEIGHTS:
+        checkpoint.load_checkpoint(cfg.TRAIN.WEIGHTS, model)
+        logger.info("Loaded initial weights from: {}".format(cfg.TRAIN.WEIGHTS))
+
     # Load model weights
-    checkpoint.load_checkpoint(cfg.TEST.WEIGHTS, model)
-    logger.info("Loaded model weights from: {}".format(cfg.TEST.WEIGHTS))
+    if cfg.TEST.WEIGHTS:
+        checkpoint.load_checkpoint(cfg.TEST.WEIGHTS, model)
+        logger.info("Loaded model weights from: {}".format(cfg.TEST.WEIGHTS))
+    elif checkpoint.has_checkpoint():
+        last_checkpoint = checkpoint.get_last_checkpoint()
+        checkpoint = checkpoint.load_checkpoint(last_checkpoint, model, optimizer)
+        logger.info("Loaded checkpoint from: {}".format(last_checkpoint))
+    else:
+        print("ERROR: NO checkpoint! ")
+        os._exit()
     # Create data loaders and meters
     test_loader = loader.construct_test_loader()
     test_meter = meters.TestMeter(len(test_loader))
