@@ -358,9 +358,53 @@ def test_epoch(test_loader, model, test_meter, cur_epoch):
         test_meter.log_iter_stats(cur_epoch, cur_iter)
         test_meter.iter_tic()
     # Log epoch stats
+    result=test_meter.get_epoch_stats(cur_epoch)
     test_meter.log_epoch_stats(cur_epoch)
     test_meter.reset()
+    return result
 
+@torch.no_grad()
+def test_epoch_semi(test_loader, model, test_meter, cur_epoch):
+    """Evaluates the model on the test set."""
+    # Enable eval mode
+    model.eval()
+    test_meter.iter_tic()
+    for cur_iter, (inputs, labels) in enumerate(test_loader):
+        # Transfer the data to the current GPU device
+        inputs, labels = inputs.cuda(), labels.cuda(non_blocking=True)
+        # Compute the predictions
+        preds = model(inputs)
+        # Compute the errors
+        if cfg.TASK == "col":
+            preds = preds.permute(0, 2, 3, 1)
+            preds = preds.reshape(-1, preds.size(3))
+            labels = labels.reshape(-1)
+            mb_size = inputs.size(0) * inputs.size(2) * inputs.size(3) * cfg.NUM_GPUS
+        else:
+            mb_size = inputs.size(0) * cfg.NUM_GPUS
+        if cfg.TASK == "seg":
+            # top1_err is in fact inter; top5_err is in fact union
+            top1_err, top5_err = meters.inter_union(preds, labels, cfg.MODEL.NUM_CLASSES)
+        else:
+            ks = [1, min(5, cfg.MODEL.NUM_CLASSES)]  # rot only has 4 classes
+            top1_err, top5_err = meters.topk_errors(preds, labels, ks)
+        # Combine the errors across the GPUs  (no reduction if 1 GPU used)
+        top1_err, top5_err = dist.scaled_all_reduce([top1_err, top5_err])
+        # Copy the errors from GPU to CPU (sync point)
+        if cfg.TASK == "seg":
+            top1_err, top5_err = top1_err.cpu().numpy(), top5_err.cpu().numpy()
+        else:
+            top1_err, top5_err = top1_err.item(), top5_err.item()
+        test_meter.iter_toc()
+        # Update and log stats
+        test_meter.update_stats(top1_err, top5_err, mb_size)
+        test_meter.log_iter_stats(cur_epoch, cur_iter)
+        test_meter.iter_tic()
+    # Log epoch stats
+    result=test_meter.get_epoch_stats(cur_epoch)
+    test_meter.log_epoch_stats(cur_epoch)
+    test_meter.reset()
+    return result,result["top1_err"]
 
 def train_model():
     """Trains the model."""
@@ -510,14 +554,6 @@ def test_model():
     setup_env()
     # Construct the model
     model = setup_model()
-    if cfg.TRAIN.AUTO_RESUME and checkpoint.has_checkpoint():
-        last_checkpoint = checkpoint.get_last_checkpoint()
-        checkpoint_epoch = checkpoint.load_checkpoint(last_checkpoint, model, optimizer)
-        logger.info("Loaded checkpoint from: {}".format(last_checkpoint))
-        start_epoch = checkpoint_epoch + 1
-    elif cfg.TRAIN.WEIGHTS:
-        checkpoint.load_checkpoint(cfg.TRAIN.WEIGHTS, model)
-        logger.info("Loaded initial weights from: {}".format(cfg.TRAIN.WEIGHTS))
 
     # Load model weights
     if cfg.TEST.WEIGHTS:
@@ -534,7 +570,14 @@ def test_model():
     test_loader = loader.construct_test_loader()
     test_meter = meters.TestMeter(len(test_loader))
     # Evaluate the model
-    test_epoch(test_loader, model, test_meter, 0)
+    if cfg.TASK == 'psd' or cfg.TASK == 'fix':
+        result,ce_error=test_epoch_semi(test_loader, model, test_meter, 0)
+    else:
+        result=test_epoch(test_loader, model, test_meter, 0)
+    with open(cfg.OUT_DIR+'/result.txt','w') as f:
+        f.write(str(result["top1_err"]))        
+    print(result["top1_err"])
+    
 
 
 def time_model():
