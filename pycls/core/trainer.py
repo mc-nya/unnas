@@ -369,11 +369,30 @@ def test_epoch_semi(test_loader, model, test_meter, cur_epoch):
     # Enable eval mode
     model.eval()
     test_meter.iter_tic()
+    total_ce_loss_1=0.0
+    total_ce_loss_k=0.0
+    total_samples=0
     for cur_iter, (inputs, labels) in enumerate(test_loader):
         # Transfer the data to the current GPU device
         inputs, labels = inputs.cuda(), labels.cuda(non_blocking=True)
         # Compute the predictions
         preds = model(inputs)
+
+        # Compute normed CE error
+        total_samples+=inputs.shape[0]
+        probs = torch.softmax(preds, dim=1)
+        _, lbs_u_guess = torch.max(probs, dim=1)
+        criteria_u = nn.CrossEntropyLoss(reduction='none').cuda()
+
+        normed_logits_1=F.normalize(preds,p=2,dim=1)
+        loss_CE=(criteria_u(torch.softmax(normed_logits_1,dim=1),lbs_u_guess)).mean()
+        total_ce_loss_1+=loss_CE.item()*inputs.shape[0]
+
+        normed_logits_k=F.normalize(preds,p=2,dim=1)*10
+        #print(torch.norm(normed_logits_k,dim=1))
+        loss_CE=(criteria_u(torch.softmax(normed_logits_k,dim=1),lbs_u_guess)).mean()
+        total_ce_loss_k+=loss_CE.item()*inputs.shape[0]
+
         # Compute the errors
         if cfg.TASK == "col":
             preds = preds.permute(0, 2, 3, 1)
@@ -404,7 +423,7 @@ def test_epoch_semi(test_loader, model, test_meter, cur_epoch):
     result=test_meter.get_epoch_stats(cur_epoch)
     test_meter.log_epoch_stats(cur_epoch)
     test_meter.reset()
-    return result,result["top1_err"]
+    return result,[total_ce_loss_1/total_samples,total_ce_loss_k/total_samples]
 
 def train_model():
     """Trains the model."""
@@ -573,10 +592,12 @@ def test_model():
     if cfg.TASK == 'psd' or cfg.TASK == 'fix':
         result,ce_error=test_epoch_semi(test_loader, model, test_meter, 0)
     else:
-        result=test_epoch(test_loader, model, test_meter, 0)
+        result,ce_error=test_epoch_semi(test_loader, model, test_meter, 0)
     with open(cfg.OUT_DIR+'/result.txt','w') as f:
-        f.write(str(result["top1_err"]))        
-    print(result["top1_err"])
+        f.write(str(result["top1_err"])+'\n')
+        f.write(str(ce_error[0])+'\n')      
+        f.write(str(ce_error[1])+'\n')  
+    print(result["top1_err"],ce_error)
     
 
 
