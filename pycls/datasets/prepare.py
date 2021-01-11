@@ -185,9 +185,9 @@ def prepare_strong_aug(im, dataset, split, mean, sd, eig_vals=None, eig_vecs=Non
     if "cifar" in dataset:
         if split == "train":
             if cfg.TASK == 'fix':
-                im = transforms.random_erasing(im=im,p=1.0)
                 im = transforms.horizontal_flip(im=im, p=0.5)
                 im = transforms.random_crop(im=im, size=cfg.TRAIN.IM_SIZE, pad_size=4)  # Best after color_norm because of zero padding
+                im = randaugment.random_augment(im)
             else:
                 im = transforms.horizontal_flip(im=im, p=0.5)
                 im = transforms.random_crop(im=im, size=cfg.TRAIN.IM_SIZE, pad_size=4)  

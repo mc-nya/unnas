@@ -84,7 +84,7 @@ def setup_model():
 
 
 def train_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch):
-    """Performs one epoch of training."""
+    """Performs one epoch of supervised training."""
     # Update drop path prob for NAS
     if cfg.MODEL.TYPE == "nas":
         m = model.module if cfg.NUM_GPUS > 1 else model
@@ -150,7 +150,7 @@ def train_epoch(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch
     train_meter.reset()
 
 def train_epoch_pseudo(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch):
-    """Performs one epoch of training."""
+    """Performs one epoch of Semi-supervised training."""
     # Update drop path prob for NAS
     if cfg.MODEL.TYPE == "nas":
         m = model.module if cfg.NUM_GPUS > 1 else model
@@ -475,6 +475,7 @@ def train_model():
     # Create data loaders and meters
     if cfg.TRAIN.PORTION < 1:
         if "search" in cfg.MODEL.TYPE:
+            # loader for searched based methods
             train_loader = [loader._construct_loader(
                 dataset_name=cfg.TRAIN.DATASET,
                 split=cfg.TRAIN.SPLIT,
@@ -513,6 +514,7 @@ def train_model():
             side="r"
         )
     elif cfg.TASK=='fix' or cfg.TASK=='psd':
+        # hack the dataset so we have two seperate loader in train_loader, one for labeled, one for unlabeled
         train_loader = [loader._construct_loader(
                 dataset_name=cfg.TRAIN.DATASET,
                 split=cfg.TRAIN.SPLIT,
@@ -548,7 +550,7 @@ def train_model():
     # Perform the training loop
     logger.info("Start epoch: {}".format(start_epoch + 1))
     for cur_epoch in range(start_epoch, cfg.OPTIM.MAX_EPOCH):
-        # Train for one epoch
+        # Train for one epoch, if semi-supervised, use train_epoch_pseudo
         f = search_epoch if "search" in cfg.MODEL.TYPE else train_epoch_pseudo if 'psd' == cfg.TASK or 'fix' == cfg.TASK else train_epoch
         f(train_loader, model, loss_fun, optimizer, train_meter, cur_epoch)
         # Compute precise BN stats

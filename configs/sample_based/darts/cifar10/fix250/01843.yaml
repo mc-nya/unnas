@@ -39,7 +39,7 @@ EN:
 HOST: localhost
 JIGSAW_GRID: 3
 LOG_DEST: stdout
-LOG_PERIOD: 10
+LOG_PERIOD: 100
 MEM:
   RELU_INPLACE: true
 MODEL:
@@ -59,41 +59,41 @@ NAS:
   AUX_WEIGHT: 0.4
   CUSTOM_GENOTYPE:
   - - - avg_pool_3x3
-      - 1
+      - 0
     - - sep_conv_3x3
-      - 1
-    - - sep_conv_5x5
-      - 1
+      - 0
     - - dil_conv_5x5
-      - 1
+      - 0
+    - - sep_conv_3x3
+      - 0
+    - - sep_conv_5x5
+      - 2
+    - - sep_conv_3x3
+      - 2
+    - - avg_pool_3x3
+      - 3
     - - none
       - 0
-    - - dil_conv_3x3
-      - 2
-    - - dil_conv_3x3
-      - 2
-    - - sep_conv_3x3
-      - 1
   - - 2
     - 3
     - 4
     - 5
-  - - - sep_conv_3x3
+  - - - dil_conv_5x5
       - 0
-    - - dil_conv_3x3
-      - 0
-    - - skip_connect
-      - 0
-    - - dil_conv_3x3
+    - - sep_conv_3x3
       - 0
     - - none
       - 1
-    - - dil_conv_5x5
+    - - sep_conv_5x5
       - 1
-    - - dil_conv_3x3
-      - 4
-    - - skip_connect
-      - 4
+    - - dil_conv_5x5
+      - 0
+    - - max_pool_3x3
+      - 2
+    - - none
+      - 3
+    - - avg_pool_3x3
+      - 3
   - - 2
     - 3
     - 4
@@ -118,14 +118,14 @@ OPTIM:
   ITER_LR: false
   LR_MULT: 0.1
   LR_POLICY: cos
-  MAX_EPOCH: 100
+  MAX_EPOCH: 50
   MOMENTUM: 0.9
   NESTEROV: true
   STEPS: []
   WARMUP_EPOCHS: 0
   WARMUP_FACTOR: 0.1
   WEIGHT_DECAY: 0.0005
-OUT_DIR: .
+OUT_DIR: /tmp
 PORT: 10001
 PREC_TIME:
   NUM_ITER: 30
@@ -149,7 +149,7 @@ RESNET:
   TRANS_FUN: basic_transform
   WIDTH_PER_GROUP: 64
 RNG_SEED: 1
-TASK: psd
+TASK: fix
 TEST:
   BATCH_SIZE: 200
   DATASET: cifar10
@@ -166,8 +166,8 @@ TRAIN:
   IM_SIZE: 32
   PORTION: 1.0
   PSD_LABEL_BATCH_SIZE: 32
-  PSD_LABEL_SPLIT: 150
-  PSD_THRESHOLD: 0.9
-  PSD_UNLABEL_BATCH_SIZE: 224
+  PSD_LABEL_SPLIT: 250
+  PSD_THRESHOLD: 0.95
+  PSD_UNLABEL_BATCH_SIZE: 50
   SPLIT: train
   WEIGHTS: ''

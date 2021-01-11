@@ -16,7 +16,7 @@ import pycls.core.logging as logging
 import pycls.datasets.transforms as transforms
 import torch.utils.data
 from pycls.core.config import cfg
-from pycls.datasets.prepare import prepare_rot
+from pycls.datasets.prepare import prepare_rot, prepare_strong_aug
 from pycls.datasets.prepare import prepare_col
 from pycls.datasets.prepare import prepare_jig
 from pycls.datasets.prepare import prepare_im
@@ -100,7 +100,7 @@ class Cifar10(torch.utils.data.Dataset):
                             split=self._split,
                             mean=_MEAN,
                             sd=_SD)
-            im2=random_augment(im,
+            im2=prepare_strong_aug(im,
                             dataset="cifar10",
                             split=self._split,
                             mean=_MEAN,

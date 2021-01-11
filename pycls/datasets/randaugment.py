@@ -51,13 +51,15 @@ def equalize_func(img):
         hist = cv2.calcHist([ch], [0], None, [n_bins], [0, n_bins])
         non_zero_hist = hist[hist != 0].reshape(-1)
         step = np.sum(non_zero_hist[:-1]) // (n_bins - 1)
+        #print(step)
         if step == 0: return ch
         n = np.empty_like(hist)
         n[0] = step // 2
         n[1:] = hist[:-1]
         table = (np.cumsum(n) // step).clip(0, 255).astype(np.uint8)
+        #print(table,ch)
         return table[ch]
-
+    #print(cv2.split(img))
     channels = [tune_channel(ch) for ch in cv2.split(img)]
     out = cv2.merge(channels)
     return out
@@ -258,57 +260,60 @@ def rotate_level_to_args(MAX_LEVEL, replace_value):
     return level_to_args
 
 
-func_dict = {
-    'Identity': identity_func,
-    'AutoContrast': autocontrast_func,
-    'Equalize': equalize_func,
-    'Rotate': rotate_func,
-    'Solarize': solarize_func,
-    'Color': color_func,
-    'Contrast': contrast_func,
-    'Brightness': brightness_func,
-    'Sharpness': sharpness_func,
-    'ShearX': shear_x_func,
-    'TranslateX': translate_x_func,
-    'TranslateY': translate_y_func,
-    'Posterize': posterize_func,
-    'ShearY': shear_y_func,
-}
 
-translate_const = 10
-MAX_LEVEL = 10
-replace_value = (128, 128, 128)
-arg_dict = {
-    'Identity': none_level_to_args,
-    'AutoContrast': none_level_to_args,
-    'Equalize': none_level_to_args,
-    'Rotate': rotate_level_to_args(MAX_LEVEL, replace_value),
-    'Solarize': solarize_level_to_args(MAX_LEVEL),
-    'Color': enhance_level_to_args(MAX_LEVEL),
-    'Contrast': enhance_level_to_args(MAX_LEVEL),
-    'Brightness': enhance_level_to_args(MAX_LEVEL),
-    'Sharpness': enhance_level_to_args(MAX_LEVEL),
-    'ShearX': shear_level_to_args(MAX_LEVEL, replace_value),
-    'TranslateX': translate_level_to_args(
-        translate_const, MAX_LEVEL, replace_value
-    ),
-    'TranslateY': translate_level_to_args(
-        translate_const, MAX_LEVEL, replace_value
-    ),
-    'Posterize': posterize_level_to_args(MAX_LEVEL),
-    'ShearY': shear_level_to_args(MAX_LEVEL, replace_value),
-}
 
 def random_augment(img,N=2,M=10):
+    translate_const = 10
+    MAX_LEVEL = 10
+    replace_value = (128, 128, 128)
+    func_dict = {
+        'Identity': identity_func,
+        'AutoContrast': autocontrast_func,
+        'Equalize': equalize_func,
+        'Rotate': rotate_func,
+        'Solarize': solarize_func,
+        'Color': color_func,
+        'Contrast': contrast_func,
+        'Brightness': brightness_func,
+        'Sharpness': sharpness_func,
+        'ShearX': shear_x_func,
+        'TranslateX': translate_x_func,
+        'TranslateY': translate_y_func,
+        'Posterize': posterize_func,
+        'ShearY': shear_y_func,
+    }
+    arg_dict = {
+        'Identity': none_level_to_args,
+        'AutoContrast': none_level_to_args,
+        'Equalize': none_level_to_args,
+        'Rotate': rotate_level_to_args(MAX_LEVEL, replace_value),
+        'Solarize': solarize_level_to_args(MAX_LEVEL),
+        'Color': enhance_level_to_args(MAX_LEVEL),
+        'Contrast': enhance_level_to_args(MAX_LEVEL),
+        'Brightness': enhance_level_to_args(MAX_LEVEL),
+        'Sharpness': enhance_level_to_args(MAX_LEVEL),
+        'ShearX': shear_level_to_args(MAX_LEVEL, replace_value),
+        'TranslateX': translate_level_to_args(
+            translate_const, MAX_LEVEL, replace_value
+        ),
+        'TranslateY': translate_level_to_args(
+            translate_const, MAX_LEVEL, replace_value
+        ),
+        'Posterize': posterize_level_to_args(MAX_LEVEL),
+        'ShearY': shear_level_to_args(MAX_LEVEL, replace_value),
+    }
+    #print(img.dtype)
+    img=img.transpose(1,2,0).astype(np.uint8)
+    #print(img.shape)
     sampled_ops = np.random.choice(list(func_dict.keys()), N)
-    ops=[(op, 0.5, self.M) for op in sampled_ops]
+    ops=[(op, 0.5, M) for op in sampled_ops]
     for name, prob, level in ops:
         if np.random.random() > prob:
             continue
         args = arg_dict[name](level)
         img = func_dict[name](img, *args)
     img = cutout_func(img, 16, replace_value)
-    return img
+    return img.transpose(2,0,1).astype(np.float32)
 # class RandomAugment(object):
 
 #     def __init__(self, N=2, M=10):
@@ -331,6 +336,6 @@ def random_augment(img,N=2,M=10):
 
 
 if __name__ == '__main__':
-    a = RandomAugment()
-    img = np.random.randn(32, 32, 3)
-    a(img)
+    #a = RandomAugment()
+    img = np.random.randn(3,32,32)
+    random_augment(img)
